@@ -9,7 +9,7 @@ import {
   Scripts,
   ScrollRestoration,
   useRouteLoaderData,
-} from 'react-router';
+} from '@remix-run/react';
 import type {Route} from './+types/root';
 import favicon from '~/assets/favicon.svg';
 import {FOOTER_QUERY, HEADER_QUERY} from '~/lib/fragments';
@@ -17,8 +17,43 @@ import resetStyles from '~/styles/reset.css?url';
 import appStyles from '~/styles/app.css?url';
 import tailwindCss from './styles/tailwind.css?url';
 import {PageLayout} from './components/PageLayout';
+import {defer, type LoaderFunctionArgs} from '@shopify/remix-oxygen';
+import {Await, NavLink, useLoaderData} from '@remix-run/react';
+import {Suspense} from 'react';
 
-export type RootLoader = typeof loader;
+export async function loader({context}: LoaderFunctionArgs) {
+  const isLoggedInPromise = customerAccount.isLoggedIn();
+
+  return defer(
+    {isLoggedInPromise},
+    {
+      headers: {
+        'Set-Cookie': await context.session.commit(),
+      },
+    },
+  );
+}
+
+export default function App() {
+  const {isLoggedInPromise} = useLoaderData<typeof loader>();
+
+  return (
+    <html lang="en">
+      <body>
+        <header className="header">
+          <NavLink prefetch="intent" to="/account">
+            <Suspense fallback="Sign in">
+              <Await resolve={isLoggedInPromise} errorElement="Sign in">
+                {(isLoggedIn) => (isLoggedIn ? 'Account' : 'Sign in')}
+              </Await>
+            </Suspense>
+          </NavLink>
+        </header>
+        {/* Rest of the application */}
+      </body>
+    </html>
+  );
+}export type RootLoader = typeof loader;
 
 /**
  * This is important to avoid re-fetching root queries on sub-navigations
