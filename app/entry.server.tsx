@@ -9,7 +9,7 @@ import type { EntryContext } from 'react-router';
 
 createContentSecurityPolicy({
   connectSrc: [
-    // (ie. 'wss://<https://headset-darkroom-scheming.ngrok-free.dev/>.app:*')
+    // (ie. 'wss://https://headset-darkroom-scheming.ngrok-free.dev.app:*')
     'wss://<your-tunneled-host>:*',
   ],
 });
