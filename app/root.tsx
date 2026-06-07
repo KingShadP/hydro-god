@@ -1,154 +1,211 @@
-// Note: ambient module declarations belong in a separate .d.ts file.
-// Having `declare module '...'` in this module file causes TypeScript
-// to treat them as augmentations, which errors when the original module
-// cannot be found. Runtime fallbacks are provided below.
+import {Analytics, getShopAnalytics, useNonce} from '@shopify/hydrogen';
+import {
+  Outlet,
+  useRouteError,
+  isRouteErrorResponse,
+  type ShouldRevalidateFunction,
+  Links,
+  Meta,
+  Scripts,
+  ScrollRestoration,
+  useRouteLoaderData,
+} from 'react-router';
+import type {Route} from './+types/root';
+import favicon from '~/assets/favicon.svg';
+import {FOOTER_QUERY, HEADER_QUERY} from '~/lib/fragments';
+import resetStyles from '~/styles/reset.css?url';
+import appStyles from '~/styles/app.css?url';
+import tailwindCss from './styles/tailwind.css?url';
+import {PageLayout} from './components/PageLayout';
 
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      [elemName: string]: any;
-    }
-  }
-}
-
-// Minimal local React stub to avoid requiring the 'react' package in environments
-// where it's not installed. This provides the parts of React used in this file.
-const React = {
-  createElement: (type: any, props?: any, ...children: any[]) => {
-    if (typeof type === 'function') {
-      return type({ ...(props || {}), children: children.length ? (children.length === 1 ? children[0] : children) : undefined });
-    }
-    return { type, props: { ...(props || {}), children: children.length ? (children.length === 1 ? children[0] : children) : undefined } };
-  }
-} as any;
-
-declare namespace React {
-  type ComponentType<P = any> = (props: P) => any;
-  type ReactNode = any;
-}
+export type RootLoader = typeof loader;
 
 /**
- * Minimal runtime fallbacks for @remix-run/react exports.
- * These stop TypeScript from erroring in environments where
- * @remix-run/react isn't installed. They are intentionally
- * simple stubs and can be replaced by the real exports when
- * the package is available.
+ * This is important to avoid re-fetching root queries on sub-navigations
  */
-const Outlet: React.ComponentType<any> = (props: any) => props.children ?? null;
-const Links: React.ComponentType<any> = (_props: any) => null;
-const Meta: React.ComponentType<any> = (_props: any) => null;
-const Scripts: React.ComponentType<any> = (_props: any) => null;
-const ScrollRestoration: React.ComponentType<{ nonce?: string }> = (_props: any) => null;
-const useRouteError: () => any = () => undefined;
-const isRouteErrorResponse: (error: any) => boolean = (_error: any) => false;
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  formMethod,
+  currentUrl,
+  nextUrl,
+}) => {
+  // revalidate when a mutation is performed e.g add to cart, login...
+  if (formMethod && formMethod !== 'GET') return true;
 
-type PageLayoutProps = {
-  header?: any;
-  footer?: any;
-  children?: React.ReactNode;
+  // revalidate when manually revalidating via useRevalidator
+  if (currentUrl.toString() === nextUrl.toString()) return true;
+
+  // Defaulting to no revalidation for root loader data to improve performance.
+  // When using this feature, you risk your UI getting out of sync with your server.
+  // Use with caution. If you are uncomfortable with this optimization, update the
+  // line below to `return defaultShouldRevalidate` instead.
+  // For more details see: https://remix.run/docs/en/main/route/should-revalidate
+  return false;
 };
 
-export function PageLayout({ header, footer, children }: PageLayoutProps) {
-  const headerContent = header?.menu?.items
-    ? React.createElement(
-        'nav',
-        { className: 'container' },
-        React.createElement(
-          'ul',
-          { className: 'nav-list' },
-          header.menu.items.map((item: any, idx: number) =>
-            React.createElement(
-              'li',
-              { key: idx },
-              React.createElement('a', { href: item.url ?? '#' }, item.title ?? 'Menu item')
-            )
-          )
-        )
-      )
-    : React.createElement('div', { className: 'container' }, 'Store Header');
-
-  const footerContent = footer?.menu?.items
-    ? React.createElement(
-        'nav',
-        { className: 'container' },
-        React.createElement(
-          'ul',
-          { className: 'nav-list' },
-          footer.menu.items.map((item: any, idx: number) =>
-            React.createElement(
-              'li',
-              { key: idx },
-              React.createElement('a', { href: item.url ?? '#' }, item.title ?? 'Footer item')
-            )
-          )
-        )
-      )
-    : React.createElement('div', { className: 'container' }, 'Store Footer');
-
-  return React.createElement(
-    'div',
-    { className: 'page-layout-root' },
-    React.createElement('header', { className: 'site-header' }, headerContent),
-    React.createElement('main', { className: 'content' }, children),
-    React.createElement('footer', { className: 'site-footer' }, footerContent)
-  );
-}
-
+/**
+ * The main and reset stylesheets are added in the Layout component
+ * to prevent a bug in development HMR updates.
+ *
+ * This avoids the "failed to execute 'insertBefore' on 'Node'" error
+ * that occurs after editing and navigating to another page.
+ *
+ * It's a temporary fix until the issue is resolved.
+ * https://github.com/remix-run/remix/issues/9242
+ */
 export function links() {
   return [
-    { rel: 'preconnect', href: 'https://cdn.shopify.com' },
-    { rel: 'preconnect', href: 'https://shop.app' },
-    { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
-    // External stylesheet - create this file at /public/styles/root.css
-    { rel: 'stylesheet', href: '/styles/root.css' },
+    {
+      rel: 'preconnect',
+      href: 'https://cdn.shopify.com',
+    },
+    {
+      rel: 'preconnect',
+      href: 'https://shop.app',
+    },
+    {rel: 'icon', type: 'image/svg+xml', href: favicon},
   ];
 }
 
-export function Layout({ children }: { children?: React.ReactNode }) {
-  return React.createElement(
-    'html',
-    { lang: 'en' },
-    React.createElement(
-      'head',
-      null,
-      React.createElement(Meta, null),
-      React.createElement(Links, null),
-      React.createElement('meta', { charSet: 'utf-8' }),
-      React.createElement('meta', { name: 'viewport', content: 'width=device-width,initial-scale=1' })
-    ),
-    React.createElement('body', null, children, React.createElement(ScrollRestoration, null), React.createElement(Scripts, null))
+export async function loader(args: Route.LoaderArgs) {
+  // Start fetching non-critical data without blocking time to first byte
+  const deferredData = loadDeferredData(args);
+
+  // Await the critical data required to render initial state of the page
+  const criticalData = await loadCriticalData(args);
+
+  const {storefront, env} = args.context;
+
+  return {
+    ...deferredData,
+    ...criticalData,
+    publicStoreDomain: env.PUBLIC_STORE_DOMAIN,
+    shop: getShopAnalytics({
+      storefront,
+      publicStorefrontId: env.PUBLIC_STOREFRONT_ID,
+    }),
+    consent: {
+      checkoutDomain: env.PUBLIC_CHECKOUT_DOMAIN,
+      storefrontAccessToken: env.PUBLIC_STOREFRONT_API_TOKEN,
+      withPrivacyBanner: false,
+      // localize the privacy banner
+      country: args.context.storefront.i18n.country,
+      language: args.context.storefront.i18n.language,
+    },
+  };
+}
+
+/**
+ * Load data necessary for rendering content above the fold. This is the critical data
+ * needed to render the page. If it's unavailable, the whole page should 400 or 500 error.
+ */
+async function loadCriticalData({context}: Route.LoaderArgs) {
+  const {storefront} = context;
+
+  const [header] = await Promise.all([
+    storefront.query(HEADER_QUERY, {
+      cache: storefront.CacheLong(),
+      variables: {
+        headerMenuHandle: 'main-menu', // Adjust to your header menu handle
+      },
+    }),
+    // Add other queries here, so that they are loaded in parallel
+  ]);
+
+  return {header};
+}
+
+/**
+ * Load data for rendering content below the fold. This data is deferred and will be
+ * fetched after the initial page load. If it's unavailable, the page should still 200.
+ * Make sure to not throw any errors here, as it will cause the page to 500.
+ */
+function loadDeferredData({context}: Route.LoaderArgs) {
+  const {storefront, customerAccount, cart} = context;
+
+  // defer the footer query (below the fold)
+  const footer = storefront
+    .query(FOOTER_QUERY, {
+      cache: storefront.CacheLong(),
+      variables: {
+        footerMenuHandle: 'footer', // Adjust to your footer menu handle
+      },
+    })
+    .catch((error: Error) => {
+      // Log query errors, but don't throw them so the page can still render
+      console.error(error);
+      return null;
+    });
+  return {
+    cart: cart.get(),
+    isLoggedIn: customerAccount.isLoggedIn(),
+    footer,
+  };
+}
+
+export function Layout({children}: {children?: React.ReactNode}) {
+  const nonce = useNonce();
+
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <link rel="stylesheet" href={tailwindCss}></link>
+        <link rel="stylesheet" href={resetStyles}></link>
+        <link rel="stylesheet" href={appStyles}></link>
+        <Meta />
+        <Links />
+      </head>
+      <body>
+        {children}
+        <ScrollRestoration nonce={nonce} />
+        <Scripts nonce={nonce} />
+      </body>
+    </html>
   );
 }
 
 export default function App() {
-  return React.createElement(
-    Layout,
-    null,
-    React.createElement(PageLayout, null, React.createElement(Outlet, null))
+  const data = useRouteLoaderData<RootLoader>('root');
+
+  if (!data) {
+    return <Outlet />;
+  }
+
+  return (
+    <Analytics.Provider
+      cart={data.cart}
+      shop={data.shop}
+      consent={data.consent}
+    >
+      <PageLayout {...data}>
+        <Outlet />
+      </PageLayout>
+    </Analytics.Provider>
   );
 }
 
 export function ErrorBoundary() {
-  const error: any = useRouteError();
-  let status = 500;
-  let message = 'Unknown error';
+  const error = useRouteError();
+  let errorMessage = 'Unknown error';
+  let errorStatus = 500;
 
   if (isRouteErrorResponse(error)) {
-    status = error.status;
-    message = typeof error.data === 'string' ? error.data : error.data?.message ?? message;
+    errorMessage = error?.data?.message ?? error.data;
+    errorStatus = error.status;
   } else if (error instanceof Error) {
-    message = error.message;
+    errorMessage = error.message;
   }
 
-  return React.createElement(
-    Layout,
-    null,
-    React.createElement(
-      'div',
-      { className: 'error-container' },
-      React.createElement('h1', null, 'Something went wrong'),
-      React.createElement('h2', null, String(status)),
-      React.createElement('pre', { className: 'error-message' }, message)
-    )
+  return (
+    <div className="route-error">
+      <h1>Oops</h1>
+      <h2>{errorStatus}</h2>
+      {errorMessage && (
+        <fieldset>
+          <pre>{errorMessage}</pre>
+        </fieldset>
+      )}
+    </div>
   );
 }

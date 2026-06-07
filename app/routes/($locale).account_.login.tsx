@@ -1,4 +1,6 @@
-export async function loader({ request, context }: any) {
+import type {Route} from './+types/($locale).account_.login';
+
+export async function loader({request, context}: Route.LoaderArgs) {
   const url = new URL(request.url);
   const acrValues = url.searchParams.get('acr_values') || undefined;
   const loginHint = url.searchParams.get('login_hint') || undefined;

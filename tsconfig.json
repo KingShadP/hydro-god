@@ -17,36 +17,38 @@
     "packages/**/dist/**/*"
   ],
   "compilerOptions": {
+    "allowJs": true,
+    "baseUrl": ".",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
     "lib": [
       "DOM",
       "DOM.Iterable",
       "ES2022"
     ],
-    "isolatedModules": true,
-    "esModuleInterop": true,
-    "jsx": "react-jsx",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
     "module": "ES2022",
-    "target": "ES2022",
-    "strict": true,
-    "allowJs": true,
-    "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
-    "baseUrl": ".",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
     "paths": {
       "~/*": [
-        "app/*"
+        "./app/*"
       ]
     },
-    "noEmit": true,
-    "ignoreDeprecations": "6.0",
+    "resolveJsonModule": true,
     "rootDirs": [
       ".",
       "./.react-router/types"
     ],
-    "incremental": true,
-    "composite": false,
-    "verbatimModuleSyntax": true
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2022",
+    "types": [
+      "@shopify/oxygen-workers-types",
+      "@shopify/hydrogen/react-router-types",
+      "react-router",
+      "vite/client"
+    ]
   }
 }
